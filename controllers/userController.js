@@ -2,8 +2,10 @@ import dotenv from "dotenv";
 dotenv.config();
 import {  userModel } from "../Models/userModel.js";
 import { superAdminModel } from "../Models/superAdminModel.js";
+import { hashPassword} from '../commanFunction/commanMethod.js'
 
 import jwt from "jsonwebtoken";
+import bcrypt from 'bcrypt';
 
 //********************register superAdmin*************************/
 export const superAdminRegister = async (req, res) => {
@@ -19,10 +21,11 @@ export const superAdminRegister = async (req, res) => {
           error: "superAdmin already register",
         });
     }
+    const hash=await hashPassword(password);
     const newUser = new superAdminModel({
       name: name,
       email: email,
-      password: password,
+      password: hash,
       role: "superAdmin",
     });
     await newUser.save();
@@ -48,10 +51,11 @@ export const restUserRegister = async (req, res) => {
         .status(400)
         .json({ status: 400, error: "user already register with this email" });
     }
+    const hash=await hashPassword(password);
     const newUser = new userModel({
       name: name,
       email: email,
-      password: password,
+      password: hash,
     });
     await newUser.save();
     res.status(200).json({
@@ -73,16 +77,19 @@ export const userLogin = async (req, res) => {
 
     const RestExistUser = await userModel.findOne({
       email: email,
-      password: password,
+      // password: password,
     });
     const superAdmin = await superAdminModel.findOne({
       email: email,
-      password: password,
+      // password: password,
     });
 
     const user = RestExistUser || superAdmin;
     if (user) {
-      
+      const isPasswordMatch = await bcrypt.compare(password, user.password);
+      if(!isPasswordMatch){
+        return res.status(402).json({status:402,resmessage:"please enter the correct password!"})
+      }
       let updateToken
       
       if (user.role == "superAdmin") {
